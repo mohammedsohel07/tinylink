@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>TinyLink Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen p-6">
+    <h1 class="text-3xl font-bold mb-6 text-center">🔥 TinyLink Dashboard</h1>
+
+    <!-- Form -->
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-md mb-8">
+      <form
+        onsubmit="createLink(event)"
+        class="flex flex-col sm:flex-row gap-4"
+      >
+        <input
+          id="url"
+          placeholder="https://example.com"
+          required
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+        />
+
+        <input
+          id="code"
+          placeholder="custom code (optional)"
+          class="px-4 py-2 border border-gray-300 rounded-lg"
+        />
+
+        <button
+          class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Create
+        </button>
+      </form>
+    </div>
+
+    <!-- Table -->
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow-md">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="bg-gray-200 text-left">
+            <th class="p-3">Code</th>
+            <th class="p-3">Target URL</th>
+            <th class="p-3">Clicks</th>
+            <th class="p-3">Last Clicked</th>
+            <th class="p-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="data"></tbody>
+      </table>
+    </div>
+
+    <script>
+      async function load() {
+        const res = await fetch("/api/links");
+        const data = await res.json();
+        const tbody = document.getElementById("data");
+        tbody.innerHTML = "";
+
+        data.forEach((l) => {
+          tbody.innerHTML += `
+      <tr class="border-b">
+        <td class="p-3">
+          <a href="/${l.code}" target="_blank" class="text-blue-600">${
+            l.code
+          }</a>
+        </td>
+
+        <td class="p-3">
+          ${
+            l.target_url.length > 50
+              ? l.target_url.slice(0, 50) + "..."
+              : l.target_url
+          }
+        </td>
+
+        <td class="p-3">${l.clicks}</td>
+        <td class="p-3">${l.last_clicked || "-"}</td>
+
+        <td class="p-3 flex gap-2">
+          <button onclick="del('${l.code}')"
+            class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">
+            Delete
+          </button>
+
+          <button onclick="stats('${l.code}')"
+            class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">
+            Stats
+          </button>
+        </td>
+      </tr>
+    `;
+        });
+      }
+
+      async function createLink(e) {
+        e.preventDefault();
+        const url = document.getElementById("url").value;
+        const code = document.getElementById("code").value;
+
+        const body = { url };
+        if (code) body.code = code;
+
+        const res = await fetch("/api/links", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (res.status === 201) {
+          alert("Created!");
+          load();
+        } else {
+          const d = await res.json();
+          alert("Error: " + (d.error || "Invalid"));
+        }
+      }
+
+      async function del(code) {
+        if (!confirm("Delete " + code + "?")) return;
+
+        const res = await fetch("/api/links/" + code, { method: "DELETE" });
+
+        if (res.ok) load();
+      }
+
+      function stats(code) {
+        window.location.href = `/code.html?code=${code}`;
+      }
+
+      load();
+    </script>
+  </body>
+</html>
